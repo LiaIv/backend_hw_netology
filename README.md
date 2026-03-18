@@ -1,17 +1,17 @@
-# Домашнее задание 4
+# Домашнее задание 5
 
-Решение реализует модель данных на SQLAlchemy для загрузки данных из `students.csv` в SQLite-базу `students.db`.
+В этом задании на основе прошлого проекта добавлен REST API на FastAPI для работы с данными студентов и оценок.
 
-## Что сделано
+Используются:
+- `FastAPI`
+- `SQLAlchemy`
+- `SQLite`
 
-- описаны модели `Faculty`, `Student`, `Course`, `GradeRecord`;
-- реализован класс `StudentRepository` для операций `INSERT` и `SELECT`;
-- добавлен импорт данных из CSV;
-- реализованы методы:
-  - получения списка студентов по факультету;
-  - получения списка уникальных курсов;
-  - получения студентов по выбранному курсу с оценкой ниже 30;
-  - получения среднего балла по факультету.
+Что есть в проекте:
+- модели `Faculty`, `Student`, `Course`, `GradeRecord`
+- репозиторий для работы с базой
+- импорт данных из `students.csv`
+- CRUD для записей с оценками
 
 ## Как запустить
 
@@ -19,5 +19,16 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python main.py
+uvicorn main:app --reload
 ```
+
+После запуска можно открыть:
+- `http://127.0.0.1:8000/docs` - Swagger UI
+- `http://127.0.0.1:8000/records` - список записей
+
+Основные эндпоинты:
+- `POST /records`
+- `GET /records`
+- `GET /records/{id}`
+- `PUT /records/{id}`
+- `DELETE /records/{id}`

@@ -13,7 +13,22 @@ class StudentRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return value.strip()
+
+    def _serialize_grade_record(self, record: GradeRecord) -> dict[str, str | int]:
+        return {
+            "id": record.id,
+            "last_name": record.student.last_name,
+            "first_name": record.student.first_name,
+            "faculty_name": record.student.faculty.name,
+            "course_name": record.course.name,
+            "grade": record.grade,
+        }
+
     def add_faculty(self, name: str) -> Faculty:
+        name = self._normalize_text(name)
         faculty = self.session.scalar(select(Faculty).where(Faculty.name == name))
         if faculty is None:
             faculty = Faculty(name=name)
@@ -22,6 +37,7 @@ class StudentRepository:
         return faculty
 
     def add_course(self, name: str) -> Course:
+        name = self._normalize_text(name)
         course = self.session.scalar(select(Course).where(Course.name == name))
         if course is None:
             course = Course(name=name)
@@ -30,6 +46,8 @@ class StudentRepository:
         return course
 
     def add_student(self, last_name: str, first_name: str, faculty_name: str) -> Student:
+        last_name = self._normalize_text(last_name)
+        first_name = self._normalize_text(first_name)
         faculty = self.add_faculty(faculty_name)
         student = self.session.scalar(
             select(Student).where(
@@ -77,6 +95,99 @@ class StudentRepository:
         if commit:
             self.session.commit()
         return record
+
+    def create_grade_record(
+        self,
+        last_name: str,
+        first_name: str,
+        faculty_name: str,
+        course_name: str,
+        grade: int,
+    ) -> dict[str, str | int]:
+        student = self.add_student(last_name, first_name, faculty_name)
+        course = self.add_course(course_name)
+        existing_record = self.session.scalar(
+            select(GradeRecord).where(
+                GradeRecord.student_id == student.id,
+                GradeRecord.course_id == course.id,
+            )
+        )
+        if existing_record is not None:
+            self.session.rollback()
+            raise ValueError("A record for this student and course already exists.")
+
+        record = GradeRecord(student=student, course=course, grade=grade)
+        self.session.add(record)
+        self.session.commit()
+        self.session.refresh(record)
+        return self._serialize_grade_record(record)
+
+    def get_grade_record_count(self) -> int:
+        return int(self.session.scalar(select(func.count(GradeRecord.id))) or 0)
+
+    def get_all_grade_records(self) -> list[dict[str, str | int]]:
+        stmt = (
+            select(GradeRecord)
+            .join(GradeRecord.student)
+            .join(Student.faculty)
+            .join(GradeRecord.course)
+            .order_by(GradeRecord.id)
+        )
+        records = self.session.scalars(stmt).all()
+        return [self._serialize_grade_record(record) for record in records]
+
+    def get_grade_record_by_id(self, record_id: int) -> dict[str, str | int] | None:
+        stmt = (
+            select(GradeRecord)
+            .join(GradeRecord.student)
+            .join(Student.faculty)
+            .join(GradeRecord.course)
+            .where(GradeRecord.id == record_id)
+        )
+        record = self.session.scalar(stmt)
+        return None if record is None else self._serialize_grade_record(record)
+
+    def update_grade_record(
+        self,
+        record_id: int,
+        last_name: str,
+        first_name: str,
+        faculty_name: str,
+        course_name: str,
+        grade: int,
+    ) -> dict[str, str | int] | None:
+        record = self.session.get(GradeRecord, record_id)
+        if record is None:
+            return None
+
+        student = self.add_student(last_name, first_name, faculty_name)
+        course = self.add_course(course_name)
+        existing_record = self.session.scalar(
+            select(GradeRecord).where(
+                GradeRecord.student_id == student.id,
+                GradeRecord.course_id == course.id,
+                GradeRecord.id != record_id,
+            )
+        )
+        if existing_record is not None:
+            self.session.rollback()
+            raise ValueError("A record for this student and course already exists.")
+
+        record.student = student
+        record.course = course
+        record.grade = grade
+        self.session.commit()
+        self.session.refresh(record)
+        return self._serialize_grade_record(record)
+
+    def delete_grade_record(self, record_id: int) -> bool:
+        record = self.session.get(GradeRecord, record_id)
+        if record is None:
+            return False
+
+        self.session.delete(record)
+        self.session.commit()
+        return True
 
     def import_from_csv(self, csv_path: str | Path) -> None:
         with Path(csv_path).open(encoding="utf-8", newline="") as csv_file:
