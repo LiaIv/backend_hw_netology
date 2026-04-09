@@ -19,3 +19,25 @@ class GradeRecordUpdate(GradeRecordBase):
 
 class GradeRecordResponse(GradeRecordBase):
     id: int
+
+
+class UserCredentials(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=100)
+
+
+class UserRegister(UserCredentials):
+    pass
+
+
+class UserLogin(UserCredentials):
+    pass
+
+
+class AuthResponse(BaseModel):
+    user_id: int
+    message: str
+
+
+class MessageResponse(BaseModel):
+    message: str

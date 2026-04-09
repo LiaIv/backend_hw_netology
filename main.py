@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from auth import get_current_user, router as auth_router
 from db import SessionLocal, init_db
 from repository import StudentRepository
 from schemas import GradeRecordCreate, GradeRecordResponse, GradeRecordUpdate
@@ -23,6 +24,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Students API", lifespan=lifespan)
+app.include_router(auth_router)
 
 
 def get_db():
@@ -34,12 +36,17 @@ def get_repository(session: Session = Depends(get_db)) -> StudentRepository:
     return StudentRepository(session)
 
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(get_current_user)])
 def read_root() -> dict[str, str]:
     return {"message": "Students API is running"}
 
 
-@app.post("/records", response_model=GradeRecordResponse, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/records",
+    response_model=GradeRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_user)],
+)
 def create_record(
     payload: GradeRecordCreate,
     repository: StudentRepository = Depends(get_repository),
@@ -50,14 +57,22 @@ def create_record(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
-@app.get("/records", response_model=list[GradeRecordResponse])
+@app.get(
+    "/records",
+    response_model=list[GradeRecordResponse],
+    dependencies=[Depends(get_current_user)],
+)
 def get_records(
     repository: StudentRepository = Depends(get_repository),
 ) -> list[dict[str, str | int]]:
     return repository.get_all_grade_records()
 
 
-@app.get("/records/{record_id}", response_model=GradeRecordResponse)
+@app.get(
+    "/records/{record_id}",
+    response_model=GradeRecordResponse,
+    dependencies=[Depends(get_current_user)],
+)
 def get_record(
     record_id: int,
     repository: StudentRepository = Depends(get_repository),
@@ -68,7 +83,11 @@ def get_record(
     return record
 
 
-@app.put("/records/{record_id}", response_model=GradeRecordResponse)
+@app.put(
+    "/records/{record_id}",
+    response_model=GradeRecordResponse,
+    dependencies=[Depends(get_current_user)],
+)
 def update_record(
     record_id: int,
     payload: GradeRecordUpdate,
@@ -84,7 +103,11 @@ def update_record(
     return record
 
 
-@app.delete("/records/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete(
+    "/records/{record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 def delete_record(
     record_id: int,
     repository: StudentRepository = Depends(get_repository),

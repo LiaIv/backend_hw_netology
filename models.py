@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db import Base
@@ -51,3 +51,12 @@ class GradeRecord(Base):
 
     student: Mapped["Student"] = relationship(back_populates="grades")
     course: Mapped["Course"] = relationship(back_populates="grades")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_logged_in: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
